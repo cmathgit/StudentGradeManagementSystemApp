@@ -16,6 +16,8 @@ using System.Xml.Linq;
 using iTextSharp.text;
 using iTextSharp.text.pdf;
 using System.Diagnostics;
+using Microsoft.Extensions.Configuration;
+using MySqlConnector; // Make sure you have the MySqlConnector NuGet package installed
 
 namespace csc835StudentGradeManagementSystemCM
 {
@@ -31,6 +33,14 @@ namespace csc835StudentGradeManagementSystemCM
         public Form1()
         {
             InitializeComponent();
+
+            // Build the configuration
+            var builder = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true) // Optional base settings
+            .AddJsonFile("appsettings.Development.json", optional: true, reloadOnChange: true); // Development-specific settings
+
+            _configuration = builder.Build();
         }
 
         private void button3_Click(object sender, EventArgs e)
@@ -206,10 +216,21 @@ namespace csc835StudentGradeManagementSystemCM
                  * Semester:      textBox17.Text
                  */
 
-				//assuming a MariaDB or MySQL RDBMS  implementation exists (connections can be tested with a third party app, e.g., HeidiSQL), replace connection string parameters with your database server, database name, user name, and password. 
-                string cnnStr = "Server=dummymariadb.abc.edu;Database=sample_db_name;Uid=dummy_user;Pwd=FakePassword1234;";
+				//assuming a MariaDB or MySQL RDBMS  implementation exists (connections can be tested with a third party app, e.g., HeidiSQL), create an appsettings.development.json file in the StudentGradeManagementSystemApp project folder with the following content:
+                //{
+                //    "ConnectionStrings": {
+                //      "MariaDBConnection": "Server=your_server_address;Port=your_port;Database=your_database_name;Uid=your_username;Pwd=your_password;"  
+                //    }
 
-                using (MySqlConnection connection = new MySqlConnection(cnnStr))
+                string connectionString = _configuration.GetConnectionString("MariaDBConnection");
+
+                if (string.IsNullOrEmpty(connectionString))
+                {
+                    MessageBox.Show("Connection string 'MariaDBConnection' not found in configuration.", "Error");
+                    return;
+                }
+
+                using (MySqlConnection connection = new MySqlConnection(connectionString))
                 {
                     try
                     {
@@ -223,7 +244,7 @@ namespace csc835StudentGradeManagementSystemCM
                         string retYear = textBox16.Text;
                         string retSemester = textBox17.Text;
 
-                        string selectQuery = "SELECT StudentID, CoursePrefix, CourseNum, Year, Semester FROM csc835_cruzmacias_student_grades WHERE StudentID = @StudentID AND CoursePrefix = @CoursePrefix AND CourseNum = @CourseNum AND Year = @Year AND Semester = @Semester;";
+                        string selectQuery = "SELECT StudentID, CoursePrefix, CourseNum, Year, Semester FROM STUDENT_GRADES WHERE StudentID = @StudentID AND CoursePrefix = @CoursePrefix AND CourseNum = @CourseNum AND Year = @Year AND Semester = @Semester;";
 
                         using (MySqlCommand command = new MySqlCommand(selectQuery, connection))
                         {
@@ -259,10 +280,16 @@ namespace csc835StudentGradeManagementSystemCM
                         connection.Close();
                         Console.WriteLine("Connection closed.");
                     }
+                    catch (MySqlException ex)
+                    {
+                        Console.WriteLine("Error: " + ex.Message);
+                        MessageBox.Show($"Error connecting to the database: {ex.Message}", "Error");
+                    }
                     catch (Exception ex)
                     {
                         Console.WriteLine("Error: " + ex.Message);
                         MessageBox.Show("Error: " + ex.Message);
+
                     }
                 }
 
@@ -408,10 +435,22 @@ namespace csc835StudentGradeManagementSystemCM
                  * Semester:      textBox6.Text
                  */
 
-				//assuming a MariaDB or MySQL RDBMS  implementation exists (connections can be tested with a third party app, e.g., HeidiSQL), replace connection string parameters with your database server, database name, user name, and password. 
-                string cnnStr = "Server=dummymariadb.abc.edu;Database=sample_db_name;Uid=dummy_user;Pwd=FakePassword1234;";
 
-                using (MySqlConnection conn = new MySqlConnection(cnnStr))
+				//assuming a MariaDB or MySQL RDBMS  implementation exists (connections can be tested with a third party app, e.g., HeidiSQL), create an appsettings.development.json file in the StudentGradeManagementSystemApp project folder with the following content:
+                //{
+                //    "ConnectionStrings": {
+                //      "MariaDBConnection": "Server=your_server_address;Port=your_port;Database=your_database_name;Uid=your_username;Pwd=your_password;"  
+                //    }
+
+                string connectionString = _configuration.GetConnectionString("MariaDBConnection");
+
+                if (string.IsNullOrEmpty(connectionString))
+                {
+                    MessageBox.Show("Connection string 'MariaDBConnection' not found in configuration.", "Error");
+                    return;
+                }
+
+                using (MySqlConnection conn = new MySqlConnection(connectionString))
                 {
                     try
                     {
@@ -429,7 +468,7 @@ namespace csc835StudentGradeManagementSystemCM
                         string newYear = textBox5.Text;
                         string newSemester = textBox6.Text;
 
-                        string insert = "INSERT INTO csc835_cruzmacias_student_grades (StudentID, CoursePrefix, CourseNum, Grade, Year, Semester) VALUES (@StudentID, @CoursePrefix, @CourseNum, @Grade, @Year, @Semester);";
+                        string insert = "INSERT INTO STUDENT_GRADES (StudentID, CoursePrefix, CourseNum, Grade, Year, Semester) VALUES (@StudentID, @CoursePrefix, @CourseNum, @Grade, @Year, @Semester);";
 
                         using (MySqlCommand command = new MySqlCommand(insert, conn))
                         {
@@ -448,6 +487,11 @@ namespace csc835StudentGradeManagementSystemCM
                         //MessageBox.Show("Connection Terminated.");
                         Console.WriteLine("Connection closed.");
                         exceptionThrown = false;
+                    }
+                    catch (MySqlException ex)
+                    {
+                        Console.WriteLine("Error: " + ex.Message);
+                        MessageBox.Show($"Error connecting to the database: {ex.Message}", "Error");
                     }
                     catch (Exception ex)
                     {
@@ -474,7 +518,7 @@ namespace csc835StudentGradeManagementSystemCM
                     //reset GPA member to 0
                     GPA = 0.0;
 
-                    using (MySqlConnection conn = new MySqlConnection(cnnStr))
+                    using (MySqlConnection conn = new MySqlConnection(connectionString))
                     {
                         try
                         {
@@ -489,7 +533,7 @@ namespace csc835StudentGradeManagementSystemCM
                             string Year = textBox5.Text;
                             string Semester = textBox6.Text;
 
-                            string selectTotalCredits = "SELECT SUM(A.Hours) FROM csc835_cruzmacias_courses A, csc835_cruzmacias_student_grades B WHERE 1 = 1 AND A.CoursePrefix = B.CoursePrefix AND A.CourseNum = B.CourseNum AND A.Semester = B. Semester AND A.Year = B.Year AND B.StudentID = @StudentID;";
+                            string selectTotalCredits = "SELECT SUM(A.Hours) FROM COURSES A, STUDENT_GRADES B WHERE 1 = 1 AND A.CoursePrefix = B.CoursePrefix AND A.CourseNum = B.CourseNum AND A.Semester = B. Semester AND A.Year = B.Year AND B.StudentID = @StudentID;";
 
                             using (MySqlCommand command1 = new MySqlCommand(selectTotalCredits, conn))
                             {
@@ -512,7 +556,7 @@ namespace csc835StudentGradeManagementSystemCM
                                 Console.WriteLine($"Rows affected: {rowsAffected}");
                             }
 
-                            string selectTotalWeightedGradePoints = "SELECT SUM(A.Hours * CASE WHEN B.Grade = 'A' THEN 4.00 WHEN B.Grade = 'B' THEN 3.00 WHEN B.Grade = 'C' THEN 2.00 WHEN B.Grade = 'D' THEN 1.00 WHEN B.Grade = 'F' THEN 0.00 ELSE 0.00 END) FROM csc835_cruzmacias_courses A, csc835_cruzmacias_student_grades B WHERE 1 = 1 AND A.CoursePrefix = B.CoursePrefix AND A.CourseNum = B.CourseNum AND A.Semester = B. Semester AND A.Year = B.Year AND B.StudentID = @StudentID;";
+                            string selectTotalWeightedGradePoints = "SELECT SUM(A.Hours * CASE WHEN B.Grade = 'A' THEN 4.00 WHEN B.Grade = 'B' THEN 3.00 WHEN B.Grade = 'C' THEN 2.00 WHEN B.Grade = 'D' THEN 1.00 WHEN B.Grade = 'F' THEN 0.00 ELSE 0.00 END) FROM COURSES A, STUDENT_GRADES B WHERE 1 = 1 AND A.CoursePrefix = B.CoursePrefix AND A.CourseNum = B.CourseNum AND A.Semester = B. Semester AND A.Year = B.Year AND B.StudentID = @StudentID;";
 
                             using (MySqlCommand command2 = new MySqlCommand(selectTotalWeightedGradePoints, conn))
                             {
@@ -547,7 +591,7 @@ namespace csc835StudentGradeManagementSystemCM
                             Console.WriteLine("GPA: " + GPA);
 
                             //update the student info table
-                            string updateOverallGPA = "UPDATE csc835_cruzmacias_student_info SET OverallGPA = @GPA WHERE StudentID = @StudentID;";
+                            string updateOverallGPA = "UPDATE STUDENT_INFORMATION SET OverallGPA = @GPA WHERE StudentID = @StudentID;";
 
                             using (MySqlCommand command3 = new MySqlCommand(updateOverallGPA, conn))
                             {
@@ -560,6 +604,11 @@ namespace csc835StudentGradeManagementSystemCM
 
                             conn.Close();
                             Console.WriteLine("Connection closed.");
+                        }
+                        catch (MySqlException ex)
+                        {
+                            Console.WriteLine("Error: " + ex.Message);
+                            MessageBox.Show($"Error connecting to the database: {ex.Message}", "Error");
                         }
                         catch (Exception ex)
                         {
@@ -613,10 +662,21 @@ namespace csc835StudentGradeManagementSystemCM
                  * Semester:      textBox12.Text
                  */
 
-				//assuming a MariaDB or MySQL RDBMS  implementation exists (connections can be tested with a third party app, e.g., HeidiSQL), replace connection string parameters with your database server, database name, user name, and password. 
-                string cnnStr = "Server=dummymariadb.abc.edu;Database=sample_db_name;Uid=dummy_user;Pwd=FakePassword1234;";
+				//assuming a MariaDB or MySQL RDBMS  implementation exists (connections can be tested with a third party app, e.g., HeidiSQL), create an appsettings.development.json file in the StudentGradeManagementSystemApp project folder with the following content:
+                //{
+                //    "ConnectionStrings": {
+                //      "MariaDBConnection": "Server=your_server_address;Port=your_port;Database=your_database_name;Uid=your_username;Pwd=your_password;"  
+                //    }
 
-                using (MySqlConnection conn = new MySqlConnection(cnnStr))
+                string connectionString = _configuration.GetConnectionString("MariaDBConnection");
+
+                if (string.IsNullOrEmpty(connectionString))
+                {
+                    MessageBox.Show("Connection string 'MariaDBConnection' not found in configuration.", "Error");
+                    return;
+                }
+
+                using (MySqlConnection conn = new MySqlConnection(connectionString))
                 {
                     try
                     {
@@ -631,7 +691,7 @@ namespace csc835StudentGradeManagementSystemCM
                         string updYear = textBox11.Text;
                         string updSemester = textBox12.Text;
 
-                        string update = "UPDATE csc835_cruzmacias_student_grades SET Grade = @NewGrade WHERE StudentID = @StudentID AND CoursePrefix = @CoursePrefix AND CourseNum = @CourseNum AND Year = @Year AND Semester = @Semester;";
+                        string update = "UPDATE STUDENT_GRADES SET Grade = @NewGrade WHERE StudentID = @StudentID AND CoursePrefix = @CoursePrefix AND CourseNum = @CourseNum AND Year = @Year AND Semester = @Semester;";
 
                         using (MySqlCommand command = new MySqlCommand(update, conn))
                         {
@@ -649,6 +709,11 @@ namespace csc835StudentGradeManagementSystemCM
                         conn.Close();
                         Console.WriteLine("Connection closed.");
                         exceptionThrown = false;
+                    }
+                    catch (MySqlException ex)
+                    {
+                        Console.WriteLine("Error: " + ex.Message);
+                        MessageBox.Show($"Error connecting to the database: {ex.Message}", "Error");
                     }
                     catch (Exception ex)
                     {
@@ -675,7 +740,7 @@ namespace csc835StudentGradeManagementSystemCM
                     //reset GPA member to 0
                     GPA = 0.0;
 
-                    using (MySqlConnection conn = new MySqlConnection(cnnStr))
+                    using (MySqlConnection conn = new MySqlConnection(connectionString))
                     {
                         try
                         {
@@ -690,7 +755,7 @@ namespace csc835StudentGradeManagementSystemCM
                             string Year = textBox11.Text;
                             string Semester = textBox12.Text;
 
-                            string selectTotalCredits = "SELECT SUM(A.Hours) FROM csc835_cruzmacias_courses A, csc835_cruzmacias_student_grades B WHERE 1 = 1 AND A.CoursePrefix = B.CoursePrefix AND A.CourseNum = B.CourseNum AND A.Semester = B. Semester AND A.Year = B.Year AND B.StudentID = @StudentID;";
+                            string selectTotalCredits = "SELECT SUM(A.Hours) FROM COURSES A, STUDENT_GRADES B WHERE 1 = 1 AND A.CoursePrefix = B.CoursePrefix AND A.CourseNum = B.CourseNum AND A.Semester = B. Semester AND A.Year = B.Year AND B.StudentID = @StudentID;";
 
                             using (MySqlCommand command1 = new MySqlCommand(selectTotalCredits, conn))
                             {
@@ -713,7 +778,7 @@ namespace csc835StudentGradeManagementSystemCM
                                 Console.WriteLine($"Rows affected: {rowsAffected}");
                             }
 
-                            string selectTotalWeightedGradePoints = "SELECT SUM(A.Hours * CASE WHEN B.Grade = 'A' THEN 4.00 WHEN B.Grade = 'B' THEN 3.00 WHEN B.Grade = 'C' THEN 2.00 WHEN B.Grade = 'D' THEN 1.00 WHEN B.Grade = 'F' THEN 0.00 ELSE 0.00 END) FROM csc835_cruzmacias_courses A, csc835_cruzmacias_student_grades B WHERE 1 = 1 AND A.CoursePrefix = B.CoursePrefix AND A.CourseNum = B.CourseNum AND A.Semester = B. Semester AND A.Year = B.Year AND B.StudentID = @StudentID;";
+                            string selectTotalWeightedGradePoints = "SELECT SUM(A.Hours * CASE WHEN B.Grade = 'A' THEN 4.00 WHEN B.Grade = 'B' THEN 3.00 WHEN B.Grade = 'C' THEN 2.00 WHEN B.Grade = 'D' THEN 1.00 WHEN B.Grade = 'F' THEN 0.00 ELSE 0.00 END) FROM COURSES A, STUDENT_GRADES B WHERE 1 = 1 AND A.CoursePrefix = B.CoursePrefix AND A.CourseNum = B.CourseNum AND A.Semester = B. Semester AND A.Year = B.Year AND B.StudentID = @StudentID;";
 
                             using (MySqlCommand command2 = new MySqlCommand(selectTotalWeightedGradePoints, conn))
                             {
@@ -748,7 +813,7 @@ namespace csc835StudentGradeManagementSystemCM
                             Console.WriteLine("GPA: " + GPA);
 
                             //update the student info table
-                            string updateOverallGPA = "UPDATE csc835_cruzmacias_student_info SET OverallGPA = @GPA WHERE StudentID = @StudentID;";
+                            string updateOverallGPA = "UPDATE STUDENT_INFORMATION SET OverallGPA = @GPA WHERE StudentID = @StudentID;";
 
                             using (MySqlCommand command3 = new MySqlCommand(updateOverallGPA, conn))
                             {
@@ -761,6 +826,11 @@ namespace csc835StudentGradeManagementSystemCM
 
                             conn.Close();
                             Console.WriteLine("Connection closed.");
+                        }
+                        catch (MySqlException ex)
+                        {
+                            Console.WriteLine("Error: " + ex.Message);
+                            MessageBox.Show($"Error connecting to the database: {ex.Message}", "Error");
                         }
                         catch (Exception ex)
                         {
@@ -909,10 +979,21 @@ namespace csc835StudentGradeManagementSystemCM
                  * Semester:      textBox18.Text
                  */
 
-				//assuming a MariaDB or MySQL RDBMS  implementation exists (connections can be tested with a third party app, e.g., HeidiSQL), replace connection string parameters with your database server, database name, user name, and password. 
-                string cnnStr = "Server=dummymariadb.abc.edu;Database=sample_db_name;Uid=dummy_user;Pwd=FakePassword1234;";
+				//assuming a MariaDB or MySQL RDBMS  implementation exists (connections can be tested with a third party app, e.g., HeidiSQL), create an appsettings.development.json file in the StudentGradeManagementSystemApp project folder with the following content:
+                //{
+                //    "ConnectionStrings": {
+                //      "MariaDBConnection": "Server=your_server_address;Port=your_port;Database=your_database_name;Uid=your_username;Pwd=your_password;"  
+                //    }
 
-                using (MySqlConnection conn = new MySqlConnection(cnnStr))
+                string connectionString = _configuration.GetConnectionString("MariaDBConnection");
+
+                if (string.IsNullOrEmpty(connectionString))
+                {
+                    MessageBox.Show("Connection string 'MariaDBConnection' not found in configuration.", "Error");
+                    return;
+                }
+
+                using (MySqlConnection conn = new MySqlConnection(connectionString))
                 {
                     try
                     {
@@ -926,7 +1007,7 @@ namespace csc835StudentGradeManagementSystemCM
                         string delYear = textBox19.Text;
                         string delSemester = textBox18.Text;
 
-                        string delete = "DELETE FROM csc835_cruzmacias_student_grades WHERE StudentID = @StudentID AND CoursePrefix = @CoursePrefix AND CourseNum = @CourseNum AND Year = @Year AND Semester = @Semester;";
+                        string delete = "DELETE FROM STUDENT_GRADES WHERE StudentID = @StudentID AND CoursePrefix = @CoursePrefix AND CourseNum = @CourseNum AND Year = @Year AND Semester = @Semester;";
 
                        using (MySqlCommand command = new MySqlCommand(delete, conn))
                         {
@@ -943,6 +1024,11 @@ namespace csc835StudentGradeManagementSystemCM
                         conn.Close();
                         Console.WriteLine("Connection closed.");
                         exceptionThrown = false;
+                    }
+                    catch (MySqlException ex)
+                    {
+                        Console.WriteLine("Error: " + ex.Message);
+                        MessageBox.Show($"Error connecting to the database: {ex.Message}", "Error");
                     }
                     catch (Exception ex)
                     {
@@ -968,7 +1054,7 @@ namespace csc835StudentGradeManagementSystemCM
                     //reset GPA member to 0
                     GPA = 0.0;
 
-                    using (MySqlConnection conn = new MySqlConnection(cnnStr))
+                    using (MySqlConnection conn = new MySqlConnection(connectionString))
                     {
                         try
                         {
@@ -982,7 +1068,7 @@ namespace csc835StudentGradeManagementSystemCM
                             string Year = textBox19.Text;
                             string Semester = textBox18.Text;
 
-                            string selectTotalCredits = "SELECT SUM(A.Hours) FROM csc835_cruzmacias_courses A, csc835_cruzmacias_student_grades B WHERE 1 = 1 AND A.CoursePrefix = B.CoursePrefix AND A.CourseNum = B.CourseNum AND A.Semester = B. Semester AND A.Year = B.Year AND B.StudentID = @StudentID;";
+                            string selectTotalCredits = "SELECT SUM(A.Hours) FROM COURSES A, STUDENT_GRADES B WHERE 1 = 1 AND A.CoursePrefix = B.CoursePrefix AND A.CourseNum = B.CourseNum AND A.Semester = B. Semester AND A.Year = B.Year AND B.StudentID = @StudentID;";
 
                             using (MySqlCommand command1 = new MySqlCommand(selectTotalCredits, conn))
                             {
@@ -1005,7 +1091,7 @@ namespace csc835StudentGradeManagementSystemCM
                                 Console.WriteLine($"Rows affected: {rowsAffected}");
                             }
 
-                            string selectTotalWeightedGradePoints = "SELECT SUM(A.Hours * CASE WHEN B.Grade = 'A' THEN 4.00 WHEN B.Grade = 'B' THEN 3.00 WHEN B.Grade = 'C' THEN 2.00 WHEN B.Grade = 'D' THEN 1.00 WHEN B.Grade = 'F' THEN 0.00 ELSE 0.00 END) FROM csc835_cruzmacias_courses A, csc835_cruzmacias_student_grades B WHERE 1 = 1 AND A.CoursePrefix = B.CoursePrefix AND A.CourseNum = B.CourseNum AND A.Semester = B. Semester AND A.Year = B.Year AND B.StudentID = @StudentID;";
+                            string selectTotalWeightedGradePoints = "SELECT SUM(A.Hours * CASE WHEN B.Grade = 'A' THEN 4.00 WHEN B.Grade = 'B' THEN 3.00 WHEN B.Grade = 'C' THEN 2.00 WHEN B.Grade = 'D' THEN 1.00 WHEN B.Grade = 'F' THEN 0.00 ELSE 0.00 END) FROM COURSES A, STUDENT_GRADES B WHERE 1 = 1 AND A.CoursePrefix = B.CoursePrefix AND A.CourseNum = B.CourseNum AND A.Semester = B. Semester AND A.Year = B.Year AND B.StudentID = @StudentID;";
 
                             using (MySqlCommand command2 = new MySqlCommand(selectTotalWeightedGradePoints, conn))
                             {
@@ -1041,7 +1127,7 @@ namespace csc835StudentGradeManagementSystemCM
                             Console.WriteLine("GPA: " + GPA);
 
                             //update the student info table
-                            string updateOverallGPA = "UPDATE csc835_cruzmacias_student_info SET OverallGPA = @GPA WHERE StudentID = @StudentID;";
+                            string updateOverallGPA = "UPDATE STUDENT_INFORMATION SET OverallGPA = @GPA WHERE StudentID = @StudentID;";
 
                             using (MySqlCommand command3 = new MySqlCommand(updateOverallGPA, conn))
                             {
@@ -1054,6 +1140,11 @@ namespace csc835StudentGradeManagementSystemCM
 
                             conn.Close();
                             Console.WriteLine("Connection closed.");
+                        }
+                        catch (MySqlException ex)
+                        {
+                            Console.WriteLine("Error: " + ex.Message);
+                            MessageBox.Show($"Error connecting to the database: {ex.Message}", "Error");
                         }
                         catch (Exception ex)
                         {
@@ -1195,11 +1286,23 @@ namespace csc835StudentGradeManagementSystemCM
 
                 string searchStudentID = textBox20.Text;
 
-				//assuming a MariaDB or MySQL RDBMS  implementation exists (connections can be tested with a third party app, e.g., HeidiSQL), replace connection string parameters with your database server, database name, user name, and password. 
-                string cnnStr = "Server=dummymariadb.abc.edu;Database=sample_db_name;Uid=dummy_user;Pwd=FakePassword1234;";
-                string selectStudentQuery = "SELECT A.StudentID AS StudentID, A.Name AS Name, A.OverallGPA AS OverallGPA, B.CoursePrefix AS CoursePrefix, B.CourseNum AS CourseNum, B.Grade AS Grade, B.Year AS Year, B.Semester AS Semester FROM csc835_cruzmacias_student_info A, csc835_cruzmacias_student_grades B WHERE A.StudentID = B.StudentID AND A.StudentID = @StudentID;";
+				//assuming a MariaDB or MySQL RDBMS  implementation exists (connections can be tested with a third party app, e.g., HeidiSQL), create an appsettings.development.json file in the StudentGradeManagementSystemApp project folder with the following content:
+                //{
+                //    "ConnectionStrings": {
+                //      "MariaDBConnection": "Server=your_server_address;Port=your_port;Database=your_database_name;Uid=your_username;Pwd=your_password;"  
+                //    }
 
-                using (MySqlConnection conn = new MySqlConnection(cnnStr))
+                string connectionString = _configuration.GetConnectionString("MariaDBConnection");
+
+                if (string.IsNullOrEmpty(connectionString))
+                {
+                    MessageBox.Show("Connection string 'MariaDBConnection' not found in configuration.", "Error");
+                    return;
+                }
+
+                string selectStudentQuery = "SELECT A.StudentID AS StudentID, A.Name AS Name, A.OverallGPA AS OverallGPA, B.CoursePrefix AS CoursePrefix, B.CourseNum AS CourseNum, B.Grade AS Grade, B.Year AS Year, B.Semester AS Semester FROM STUDENT_INFORMATION A, STUDENT_GRADES B WHERE A.StudentID = B.StudentID AND A.StudentID = @StudentID;";
+
+                using (MySqlConnection conn = new MySqlConnection(connectionString))
                 {
                     try
                     {
@@ -1269,6 +1372,11 @@ namespace csc835StudentGradeManagementSystemCM
 
                         conn.Close();
                         Console.WriteLine("Connection closed.");
+                    }
+                    catch (MySqlException ex)
+                    {
+                        Console.WriteLine("Error: " + ex.Message);
+                        MessageBox.Show($"Error connecting to the database: {ex.Message}", "Error");
                     }
                     catch (Exception ex)
                     {
@@ -1424,10 +1532,21 @@ namespace csc835StudentGradeManagementSystemCM
             {
                 string csvFilePath = textBox26.Text;
 				
-				//assuming a MariaDB or MySQL RDBMS  implementation exists (connections can be tested with a third party app, e.g., HeidiSQL), replace connection string parameters with your database server, database name, user name, and password. 
-                string cnnStr = "Server=dummymariadb.abc.edu;Database=sample_db_name;Uid=dummy_user;Pwd=FakePassword1234;";
+				//assuming a MariaDB or MySQL RDBMS  implementation exists (connections can be tested with a third party app, e.g., HeidiSQL), create an appsettings.development.json file in the StudentGradeManagementSystemApp project folder with the following content:
+                //{
+                //    "ConnectionStrings": {
+                //      "MariaDBConnection": "Server=your_server_address;Port=your_port;Database=your_database_name;Uid=your_username;Pwd=your_password;"  
+                //    }
 
-                using (MySqlConnection conn = new MySqlConnection(cnnStr))
+                string connectionString = _configuration.GetConnectionString("MariaDBConnection");
+
+                if (string.IsNullOrEmpty(connectionString))
+                {
+                    MessageBox.Show("Connection string 'MariaDBConnection' not found in configuration.", "Error");
+                    return;
+                }
+
+                using (MySqlConnection conn = new MySqlConnection(connectionString))
                 {
                     try
                     {
@@ -1450,7 +1569,7 @@ namespace csc835StudentGradeManagementSystemCM
                                 string Year = values[4];
                                 string Semester = values[5];
 
-                                string insertRecord = "INSERT INTO csc835_cruzmacias_student_grades (StudentID, CoursePrefix, CourseNum, Grade, Year, Semester) VALUES (@StudentID, @CoursePrefix, @CourseNum, @Grade, @Year, @Semester);";
+                                string insertRecord = "INSERT INTO STUDENT_GRADES (StudentID, CoursePrefix, CourseNum, Grade, Year, Semester) VALUES (@StudentID, @CoursePrefix, @CourseNum, @Grade, @Year, @Semester);";
 
                                 using (MySqlCommand command5 = new MySqlCommand(insertRecord, conn))
                                 {
@@ -1470,6 +1589,11 @@ namespace csc835StudentGradeManagementSystemCM
                         Console.WriteLine("Connection closed.");
                         exceptionThrown = false;
                     }
+                    catch (MySqlException ex)
+                    {
+                        Console.WriteLine("Error: " + ex.Message);
+                        MessageBox.Show($"Error connecting to the database: {ex.Message}", "Error");
+                    }
                     catch (Exception ex)
                     {
                         Console.WriteLine("Error: " + ex.Message);
@@ -1483,7 +1607,7 @@ namespace csc835StudentGradeManagementSystemCM
                     MessageBox.Show("Student Grade Records have been imported."); // display a message to the user   
                     MessageBox.Show("Calculating new Overall GPAs."); // display a message to the user and return to main menu    
 
-                    using (MySqlConnection conn = new MySqlConnection(cnnStr))
+                    using (MySqlConnection conn = new MySqlConnection(connectionString))
                     {
                         try
                         {
@@ -1508,7 +1632,7 @@ namespace csc835StudentGradeManagementSystemCM
                                     string Year = values[4];
                                     string Semester = values[5];
 
-                                    string selectTotalCredits = "SELECT SUM(A.Hours) FROM csc835_cruzmacias_courses A, csc835_cruzmacias_student_grades B WHERE 1 = 1 AND A.CoursePrefix = B.CoursePrefix AND A.CourseNum = B.CourseNum AND A.Semester = B. Semester AND A.Year = B.Year AND B.StudentID = @StudentID;";
+                                    string selectTotalCredits = "SELECT SUM(A.Hours) FROM COURSES A, STUDENT_GRADES B WHERE 1 = 1 AND A.CoursePrefix = B.CoursePrefix AND A.CourseNum = B.CourseNum AND A.Semester = B. Semester AND A.Year = B.Year AND B.StudentID = @StudentID;";
 
                                     using (MySqlCommand command6 = new MySqlCommand(selectTotalCredits, conn))
                                     {
@@ -1531,7 +1655,7 @@ namespace csc835StudentGradeManagementSystemCM
                                         Console.WriteLine($"Rows affected: {rowsAffected}");
                                     }
 
-                                    string selectTotalWeightedGradePoints = "SELECT SUM(A.Hours * CASE WHEN B.Grade = 'A' THEN 4.00 WHEN B.Grade = 'B' THEN 3.00 WHEN B.Grade = 'C' THEN 2.00 WHEN B.Grade = 'D' THEN 1.00 WHEN B.Grade = 'F' THEN 0.00 ELSE 0.00 END) FROM csc835_cruzmacias_courses A, csc835_cruzmacias_student_grades B WHERE 1 = 1 AND A.CoursePrefix = B.CoursePrefix AND A.CourseNum = B.CourseNum AND A.Semester = B. Semester AND A.Year = B.Year AND B.StudentID = @StudentID;";
+                                    string selectTotalWeightedGradePoints = "SELECT SUM(A.Hours * CASE WHEN B.Grade = 'A' THEN 4.00 WHEN B.Grade = 'B' THEN 3.00 WHEN B.Grade = 'C' THEN 2.00 WHEN B.Grade = 'D' THEN 1.00 WHEN B.Grade = 'F' THEN 0.00 ELSE 0.00 END) FROM COURSES A, STUDENT_GRADES B WHERE 1 = 1 AND A.CoursePrefix = B.CoursePrefix AND A.CourseNum = B.CourseNum AND A.Semester = B. Semester AND A.Year = B.Year AND B.StudentID = @StudentID;";
 
                                     using (MySqlCommand command7 = new MySqlCommand(selectTotalWeightedGradePoints, conn))
                                     {
@@ -1567,7 +1691,7 @@ namespace csc835StudentGradeManagementSystemCM
                                     Console.WriteLine("GPA: " + GPA);
 
                                     //update the student info table
-                                    string updateOverallGPA = "UPDATE csc835_cruzmacias_student_info SET OverallGPA = @GPA WHERE StudentID = @StudentID;";
+                                    string updateOverallGPA = "UPDATE STUDENT_INFORMATION SET OverallGPA = @GPA WHERE StudentID = @StudentID;";
 
                                     using (MySqlCommand command8 = new MySqlCommand(updateOverallGPA, conn))
                                     {
@@ -1582,6 +1706,11 @@ namespace csc835StudentGradeManagementSystemCM
 
                             conn.Close();
                             Console.WriteLine("Connection closed.");
+                        }
+                        catch (MySqlException ex)
+                        {
+                            Console.WriteLine("Error: " + ex.Message);
+                            MessageBox.Show($"Error connecting to the database: {ex.Message}", "Error");
                         }
                         catch (Exception ex)
                         {
